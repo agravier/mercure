@@ -7,13 +7,13 @@
 (def ally-char \1)
 (def ennemy-char \2)
 
-(defstruct fleet :player :nships :origin) ; TODO: defrecord
+(defrecord Fleet [player nships origin])
 
-;; the game can be a vector of planets and a turn nb
-;; :incoming is an ordered set of [turn of arrival, player, number of
-;; ships, origin]
+;; the game can be a vector of planets and a turn nb. :incoming is a
+;; ref to an ordered set of [turn of arrival, player, number of ships,
+;; origin]
 
-(defstruct planet :x :y :player :nships :growth :incoming); TODO: deftype
+(defrecord Planet [x y player nships growth incoming]) 
 
 (def planets (ref []))
 (def current-turn (ref 1))
@@ -36,22 +36,22 @@
   (let [pldata (read-numbers-str ss)]
     (if (not= (count pldata) 5)
       (throw (new Exception (str "Invalid planet description: " ss)))
-      (struct-map planet
-        :x (first pldata) :y (second pldata)
-        :player (sym (nth pldata 2))
-        :nships (nth pldata 3) :growth (nth pldata 4)))))
+      (Planet.
+        (first pldata) (second pldata) ; x y
+        (sym (nth pldata 2)) ; player
+        (nth pldata 3) (nth pldata 4) nil)))) ; nships growth incoming
 
 (defn read-fleet [ss]
-  "Returns the fleet(player, nb of ships), its dest, turn of arrival"
+  "Returns the [fleet(player, nb of ships, origin), its dest, turn of arrival]"
   (let [fldata (read-numbers-str ss)]
     (if (not= (count fldata) 6)
       (throw (new Exception (str "Invalid planet description: " ss)))
-      (list (struct fleet (sym (first fldata)) (second fldata) (nth fldata 2))
+      (list (Fleet. (sym (first fldata)) (second fldata) (nth fldata 2))
             (nth fldata 3)
             (+ (nth fldata 5) @current-turn)))))
 
-;; TODO : replace the #"#" by a re using comment-char. how?
-(defn read-line [[marker & _ :as s]]
+;; TODO: replace the #"#" by a re using comment-char. how?
+(defn read-status-line [[marker & _ :as s]]
   (if (not (.isEmpty s))
    (let [cdata (.trim (first (re-split #"#" (.substring s 1) 1)))]
      (cond
@@ -66,10 +66,10 @@
      (dosync
       (alter planets
              assoc id (assoc p :incoming (:incoming (get @planets id))))))
-  ([{:keys [player nships] :as fleet} dest eta]
+  ([{:keys [player nships] :as fleet} destid eta]
      (dosync
-      (let [destp (get @planets dest)]
-        (alter planets assoc dest
+      (let [destp (get @planets destid)]
+        (alter planets assoc destid
                (assoc destp :incoming (conj (:incoming destp) fleet)))))))
 
 (defn -main [& args]

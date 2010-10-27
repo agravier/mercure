@@ -1,8 +1,11 @@
 (ns mercure.test.core
   (:use [mercure.core] :reload)
+  (:import [mercure.core Fleet Planet])
   (:use [clojure.test])
   (:require [atticus.mock]))
 
+(import 'mercure.core.Planet)
+(import 'mercure.core.Fleet)
 ;;
 ;; helpers
 ;;
@@ -14,7 +17,7 @@
 (def planet-str "3.14 2.71 0 15 5")
 (defn stub-planet
   [] (str planet-char " " planet-str))
-(def planet-struct (struct planet 3.14 2.71 :neutral 15 5 nil))
+(def planet-rec (Planet. 3.14 2.71 :neutral 15 5 nil))
 
 (def fleet-str-no-player "15 0 1 12 2")
 (def fleet-str (str ennemy-char " " fleet-str-no-player))
@@ -24,14 +27,13 @@
             (if (= k :ally) ally-char ennemy-char)
             " " fleet-str-no-player))
   ([] (str fleet-char " " fleet-str)))
-(def fleet-struct (struct fleet :ennemy 15 0))
-(def fleet-vec [fleet-struct 1 (+ 2 @current-turn)])
+(def fleet-rec (Fleet. :ennemy 15 0))
+(def fleet-vec [fleet-rec 1 (+ 2 @current-turn)])
 
 (def planets-test
-     [{struct-map planet :x 3.14 :y 2.71
-       :player 0 :nships 15 :growth 5 :incoming []}
-      {struct planet 0 0 1 34 2 []}
-      {struct planet 7 9 2 34 2 []}])
+     [(Planet. 3.14 2.71 :neutral 15 5 [])
+      (Planet. 0 0 :ally 34 2 [])
+      (Planet. 7 9 :ennemy 34 2 [])])
 (defn reset-planets []
   (dosync (ref-set planets planets-test)))
 
@@ -57,21 +59,21 @@
 
 (deftest read-planet-t
   (is (thrown? Exception (read-planet (str planet-str " \n" planet-str))))
-  (is (= planet-struct (read-planet planet-str))))
+  (is (= planet-rec (read-planet planet-str))))
 
-(deftest read-line-t
-  (is (thrown? Exception (read-line " invalid line ")))
-  (is (= nil (read-line (stub-comment))))
-  (is (= nil (read-line "")))
+(deftest read-status-line-t
+  (is (thrown? Exception (read-status-line " invalid line ")))
+  (is (= nil (read-status-line (stub-comment))))
+  (is (= nil (read-status-line "")))
   (atticus.mock/expects
    [(read-fleet [arg]         ; mock read-plane
                 (atticus.mock/once ; has to be called once only
                  (is (= arg fleet-str) "argument to read-planet")
                  fleet-vec))]            ; return value
-   (is (= fleet-vec (read-line (stub-fleet)))))
+   (is (= fleet-vec (read-status-line (stub-fleet)))))
   (atticus.mock/expects
    [(read-planet [arg]         ; mock read-plane
                 (atticus.mock/once ; has to be called once only
                  (is (= arg planet-str) "argument to read-planet")
-                 planet-struct))]        ; return value
-   (is (= planet-struct (read-line (stub-planet))))))
+                 planet-rec))]        ; return value
+   (is (= planet-rec (read-status-line (stub-planet))))))
