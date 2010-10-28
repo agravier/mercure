@@ -9,10 +9,8 @@
 
 (defrecord Fleet [player nships origin])
 
-;; the game can be a vector of planets and a turn nb. :incoming is a
-;; ref to an ordered set of [turn of arrival, player, number of ships,
-;; origin]
-
+;; the game can be a vector of planets and a turn nb. :incoming is
+;; an ordered set of [etarrival, {player, number of ships, origin}]
 (defrecord Planet [x y player nships growth incoming]) 
 
 (def planets (ref []))
@@ -70,7 +68,7 @@
      (dosync
       (let [destp (get @planets destid)]
         (alter planets assoc destid
-               (assoc destp :incoming (conj (:incoming destp) fleet)))))))
+               (assoc destp :incoming (conj (:incoming destp) [eta fleet])))))))
 
 (defn -main [& args]
   )
