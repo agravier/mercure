@@ -1,4 +1,7 @@
 pom.xml
-*jar
+*.jar
 lib
 classes
+#*
+*#
+!tools/*.jar

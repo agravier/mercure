@@ -1,17 +1,27 @@
 # mercure
 
-FIXME: write description
+A bot for the Google AI challenge 2010 (http://ai-contest.com/)
 
 ## Usage
 
-FIXME: write
+The bot needs to be run with a game controller respecting the
+specification on http://ai-contest.com/specification.php 
+The official engine and a game replay viewer are in the tools/
+directory. The match.sh file is a convenience script that runs a match
+and pipes the output to the replay viewer. 
 
-## Installation
+Syntax: match.sh path/to/bot_jar_or_bin path/to/bot2
 
-FIXME: write
+## Installation and compilation
+
+You need leiningen: http://github.com/technomancy/leiningen
+At the project root:
+lein deps # will downloads dependencies
+lein uberjar # will compile the project jar with all runtime deps inside
 
 ## License
 
-Copyright (C) 2010 FIXME
+Copyright (C) 2010 Alexandre Gravier (name surname gmail)
 
-Distributed under the Eclipse Public License, the same as Clojure.
+Distributed under the General Public License version 3. See COPYING
+file for details.
