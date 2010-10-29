@@ -7,10 +7,12 @@
 (def ally-char \1)
 (def ennemy-char \2)
 
-(defrecord Fleet [player nships origin])
+(defrecord Fleet [player nships origin]
+  java.lang.Comparable   ; needed for the ordering of the sets of [eta, fleet]
+  (compareTo [self o] 0)); could be (- nships (:nships o))))
 
 ;; the game can be a vector of planets and a turn nb. :incoming is
-;; an ordered set of [etarrival, {player, number of ships, origin}]
+;; a sorted set of [etarrival, {player, number of ships, origin}]
 (defrecord Planet [x y player nships growth incoming]) 
 
 (def planets (ref []))
@@ -56,19 +58,40 @@
       (= marker planet-char) (read-planet cdata)
       (= marker fleet-char) (read-fleet cdata)
       (or (.isEmpty cdata) (= marker comment-char)) nil
-      :else (throw (new Exception (str "Invalid map line: "s)))))))
+      :else (throw (new Exception (str "Invalid map line: " s)))))))
+
+(defn add-new-planet [p]
+  "Appends the given planet at the end of the planets vector"
+  (dosync (alter planets conj p)))
+
+;; TODO: when releasing, change that to nop
+(defn update-planet-data [{:keys [x y player nships growth incoming] :as p} id]
+  "Updates an existing planet in the planets vector with the given data"
+  (if (>= id (count @planets))
+    (throw (Exception. (str "Tried to update planet id " id ", which
+    does not exist")))
+    (dosync
+     (alter planets
+            assoc id (assoc p :incoming (:incoming (get @planets id)))))))
+
+(defn update-planet-incoming [{:keys [player nships] :as fleet} destid eta]
+  "Adds the given [eta, fleet] to the :incoming collection of the
+  planet selected by the given id, if not already present"
+  ;; note: no duplicate guaranteed by the use of a sorted set
+  ;; TODO: test non-duplication, mkay?
+  (dosync
+   (let [destp (get @planets destid)]
+     (alter planets assoc destid
+            (assoc destp :incoming (conj (:incoming destp) [eta fleet]))))))
 
 (defn update-game-state
   "Updates the planets data. params: [planet, id] or [fleet, dest, etarrival]"
-  ([{:keys [x y player nships growth incoming] :as p} id]
-     (dosync
-      (alter planets
-             assoc id (assoc p :incoming (:incoming (get @planets id))))))
-  ([{:keys [player nships] :as fleet} destid eta]
-     (dosync
-      (let [destp (get @planets destid)]
-        (alter planets assoc destid
-               (assoc destp :incoming (conj (:incoming destp) [eta fleet])))))))
+  ([pdata id]
+     (if (< id (count @planets))
+       (update-planet-data pdata id)
+       (add-new-planet pdata)))
+  ([fleet destid arrival]
+     (update-planet-incoming fleet destid arrival)))
 
 (defn -main [& args]
   )
