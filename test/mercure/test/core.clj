@@ -10,13 +10,13 @@
 ;; helpers
 ;;
 
-(defn stub-comment
+(defn make-comment
   ([s] (str comment-char s))
   ([] (str comment-char  "a comment")))
 
 (def fleet-str-no-player "15 0 1 12 2")
 (def fleet-str (str ennemy-char " " fleet-str-no-player))
-(defn stub-fleet
+(defn make-fleet
   "player keyword in param"
   ([k] (str fleet-char " "
             (if (= k :ally) ally-char ennemy-char)
@@ -29,7 +29,7 @@
 (def fleet-vec-2-2 [(+ 3 @current-turn) (Fleet. :ally 11 0)])
 
 (def planet-str "3.14 2.71 0 15 5")
-(defn stub-planet
+(defn make-planet
   [] (str planet-char " " planet-str))
 (def planet-rec (Planet. 3.14 2.71 :neutral 15 5 nil))
 (def planet-rec-with-fleets (assoc planet-rec :incoming (sorted-set fleet-vec-1-2)))
@@ -43,6 +43,18 @@
 (defn reset-planets [f]
   (dosync (ref-set planets planets-test))
   (f))
+
+;; for read-game-state-t
+(def game-update-vec [(str comment-char " something something")
+                      ""
+                      (make-planet)
+                      (str planet-char " 0 0 1 34 2")
+                      (str planet-char " 7 9 2 34 2")
+                      ""
+                      (str planet-char " 28.1 2 1 10 4")
+                      (str fleet-char " " ennemy-char " 14 1 1 13 3")
+                      (make-fleet)
+                      ])
 
 (use-fixtures :each reset-planets)
 
@@ -68,24 +80,24 @@
 
 (deftest read-planet-t
   (is (thrown? Exception (read-planet (str planet-str " \n" planet-str))))
-  (is (= planet-rec (read-planet planet-str))))
+  (is (= [planet-rec] (read-planet planet-str))))
 
 (deftest read-status-line-t
   (is (thrown? Exception (read-status-line " invalid line ")))
-  (is (= nil (read-status-line (stub-comment))))
+  (is (= nil (read-status-line (make-comment))))
   (is (= nil (read-status-line "")))
   (atticus.mock/expects
    [(read-fleet [arg]         ; mock read-plane
                 (atticus.mock/once ; has to be called once only
                  (is (= arg fleet-str) "argument to read-planet")
                  fleet-vec-1-1))]            ; return value
-   (is (= fleet-vec-1-1 (read-status-line (stub-fleet)))))
+   (is (= fleet-vec-1-1 (read-status-line (make-fleet)))))
   (atticus.mock/expects
    [(read-planet [arg]         ; mock read-plane
                 (atticus.mock/once ; has to be called once only
                  (is (= arg planet-str) "argument to read-planet")
                  planet-rec))]        ; return value
-   (is (= planet-rec (read-status-line (stub-planet))))))
+   (is (= planet-rec (read-status-line (make-planet))))))
 
 (deftest add-new-planet-t
   (add-new-planet planet-rec)
@@ -117,15 +129,33 @@
                       (atticus.mock/once
                        (is (= p planet-rec)
                            "arguments to add-new-planet")))]
-     (update-game-state planet-rec 3))
-    (testing "case 2: [fleet, dest, etarrival]"
-      (atticus.mock/expects
-       [(update-planet-incoming [f dest eta]
-                                (atticus.mock/once
-                                 (is (and (= f (first fleet-vec-1-1))
-                                          (= dest (second fleet-vec-1-1))
-                                          (= eta (nth fleet-vec-1-1 2)))
-                                     "arguments to update-planet-incoming")))]
-       (apply update-game-state fleet-vec-1-1)))))
+     (update-game-state planet-rec 3)))
+  (testing "case 2: [fleet, dest, etarrival]"
+    (atticus.mock/expects
+     [(update-planet-incoming [f dest eta]
+                              (atticus.mock/once
+                               (is (and (= f (first fleet-vec-1-1))
+                                        (= dest (second fleet-vec-1-1))
+                                        (= eta (nth fleet-vec-1-1 2)))
+                                   "arguments to update-planet-incoming")))]
+     (apply update-game-state (conj fleet-vec-1-1 42)))))
+
+(deftest read-game-state-t ; TODO: Test more
+  (atticus.mock/expects
+   [(update-game-state [p id & rest] (atticus.mock/times 6))]
+   (doall (read-game-state game-update-vec))))
+
+(deftest travel-time-t
+  (let [p00 (Planet. 0 0 :Ally 0 0 nil)
+        p00f (Planet. 0.0001 0.0001 :Ally 0 0 nil)
+        p10 (Planet. 1 0 :Ally 0 0 nil)
+        p01 (Planet. 0 1 :Ally 0 0 nil)
+        p22 (Planet. 1 2 :Ally 0 0 nil)
+        pfloat (Planet. 112.84 37.7 :Ally 0 0 nil)]
+    (is (= (travel-time p00 p00) 0))
+    (is (= (travel-time p10 p00) (travel-time p01 p00)
+           (travel-time p00 p10) (travel-time p00 p01) 1))
+    (is (= (travel-time p00f p00) 1))
+    (is (= (travel-time p22 pfloat) 118))))
 
 (run-tests 'mercure.test.core)
