@@ -28,7 +28,7 @@
 ;; the game can be a vector of planets and a turn nb. :incoming is
 ;; a sorted set of [etarrival, {player, number of ships, origin}]
 (defrecord Planet [x y player nships growth incoming]
-  java.lang.Object ; TODO: test toString
+  java.lang.Object
   (toString [self]
             (reduce str
                     (interpose " "
@@ -132,7 +132,7 @@
 (defn planet-to-str [p]
   (.toString p))
 
-(defn incoming-fleets-to-vecstr ; TODO: test
+(defn incoming-fleets-to-vecstr
   "returns a vector of string representations of all fleets in transit to the planet given in parameter. Each string represents one fleet and conforms to the gme state representation specification. The game state vector is given in parameter"
   [planet idplanet vecplanets]
   (vec (map #(let [fl (nth % 1)
@@ -146,18 +146,18 @@
                                        (- eta @current-turn)])))
             (:incoming planet))))
 
-(defn all-fleets-in-transit-to-vecstr ; TODO: test
+(defn all-fleets-in-transit-to-vecstr
   "Returns a vector of string representations of all fleets in transit at the current turn."
   [vecplanets]
   (let [vvecstr (map incoming-fleets-to-vecstr
                      vecplanets (iterate inc 0) (repeat vecplanets))]
     (if (< (count vvecstr) 1) [] (reduce into vvecstr))))
 
-(defn all-planets-to-vecstr ; TODO: test
+(defn all-planets-to-vecstr
   [vecplanets] 
   (map planet-to-str vecplanets))
 
-(defn game-state-to-vecstr ; TODO: test
+(defn game-state-to-vecstr
   "Returns a vector of the all the strings representing the current state of the game."
   [vecplanets] 
   (into (all-planets-to-vecstr vecplanets)
