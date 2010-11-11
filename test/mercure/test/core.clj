@@ -4,8 +4,9 @@
   (:use [clojure.test])
   (:require [atticus.mock]))
 
-(import 'mercure.core.Planet)
-(import 'mercure.core.Fleet)
+;;(import 'mercure.core.Planet)
+;;(import 'mercure.core.Fleet)
+
 ;;
 ;; helpers
 ;;
@@ -197,5 +198,10 @@
     (all-fleets-in-transit-to-vecstr [v] (atticus.mock/once ['d 'e]))]
    (is (= (game-state-to-vecstr 'whatever) ['a 'b 'c 'd 'e])))
   (is (= (game-state-to-vecstr []) [])))
+
+(deftest order-t
+  (is (= (order fleet-rec 3) "0 3 15")))
+
+
 
 (run-tests 'mercure.test.core)

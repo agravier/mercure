@@ -2,13 +2,23 @@
   (:use [clojure.contrib.math :only (sqrt ceil)]
         [clojure.contrib.str-utils :only (re-split)]))
 
+(def planets (ref []))
+(def current-turn (ref 1))
+
 (def comment-char \#)
 (def planet-char \P)
 (def fleet-char \F)
 (def ally-char \1)
 (def ennemy-char \2)
+(def end-of-io-char \g)
+(def end-of-io-str "go")
+
+(def initial-turn-duration-millis 3000)
+(def turn-duration-millis 2000)
 
 ;;;; Data structures
+
+(def end-of-io :end)
 
 (defn sym
   "Returns the symbol for the player number"
@@ -33,9 +43,6 @@
             (reduce str
                     (interpose " "
                                [planet-char x y (sym player) nships growth]))))
-
-(def planets (ref []))
-(def current-turn (ref 1))
 
 ;;;; Input transformations
 
@@ -120,6 +127,15 @@
     (map #(apply update-game-state %)
          (map #(conj %1 %2) vectok (iterate inc 1)))))
 
+(defn acquire-state-lines  ; TODO: test
+  "Reads *in* line-by-line until end-of-io-str is encountered, and passes the vecto of read strings the read-game-state function."
+  []
+  (read-game-state (loop [l (read-line)
+                          v []]
+                     (if (= end-of-io-str l)
+                       v
+                       (recur (read-line) (conj v l))))))
+
 ;;;; Common computations
 
 (defn travel-time [p1 p2]
@@ -163,7 +179,28 @@
   (into (all-planets-to-vecstr vecplanets)
         (all-fleets-in-transit-to-vecstr vecplanets)))
 
+(defn order [fleet destid]
+  (str (:origin fleet) " " destid " " (:nships fleet)))
 
+(defn issue-orders [v] ; TODO: test
+  (map println (conj v end-of-io-str)))
 
-(defn -main [& args])
+;;;; Time management
 
+(defn make-countdown-f ; TODO: test
+  "Returns a function that gives the number of milliseconds before the time in the parameter (in milliseconds) has elapsed"
+  [t]
+  (let [time-limit (+ t (System/currentTimeMillis))]
+    (fn [] (- time-limit (System/currentTimeMillis)))))
+
+;;;; Game loop
+
+(defn run ; TODO: test
+  "Runs the game turns. The agent-f parameter is a function that takes a countdown function as parameter. The coutdown function returns the number of milliseconds remaining before the end of the turn."
+  [agent-f]
+  (loop [s (acquire-state-lines)
+         countdown-f (make-countdown-f initial-turn-duration-millis)]
+    (do (read-game-state s)
+        (dosync (alter current-turn inc))
+        (issue-orders (agent-f countdown-f))
+        (recur (acquire-state-lines) (make-countdown-f turn-duration-millis)))))
